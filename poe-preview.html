@@ -1,0 +1,586 @@
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Book Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-200">
+    <div id="app" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-primary text-white shadow-lg">
+            <div class="container mx-auto px-4 py-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-book-open text-2xl"></i>
+                        <h1 class="text-2xl font-bold">Digital Library</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <input type="search" id="searchInput" placeholder="Search books..." class="bg-white/20 backdrop-blur-sm text-white placeholder-white/70 px-4 py-2 rounded-lg text-base border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 w-64">
+                            <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70"></i>
+                        </div>
+                        <button id="viewToggle" class="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                            <i class="fas fa-th-large text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8">
+            <!-- Filters -->
+            <div class="mb-8">
+                <div class="flex flex-wrap gap-4 items-center">
+                    <select id="categoryFilter" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="">All Categories</option>
+                        <option value="fiction">Fiction</option>
+                        <option value="non-fiction">Non-Fiction</option>
+                        <option value="science">Science</option>
+                        <option value="technology">Technology</option>
+                        <option value="history">History</option>
+                        <option value="biography">Biography</option>
+                    </select>
+                    <select id="sortBy" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="title">Sort by Title</option>
+                        <option value="author">Sort by Author</option>
+                        <option value="year">Sort by Year</option>
+                        <option value="rating">Sort by Rating</option>
+                    </select>
+                    <button id="bookmarksFilter" class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-bookmark"></i>
+                        <span>Bookmarked</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Books Grid/List -->
+            <div id="booksContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Books will be dynamically inserted here -->
+            </div>
+
+            <!-- No Results -->
+            <div id="noResults" class="hidden text-center py-12">
+                <i class="fas fa-search text-6xl text-gray-400 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">No books found</h3>
+                <p class="text-gray-500 dark:text-gray-500">Try adjusting your search or filters</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Book Modal -->
+    <div id="bookModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div class="flex flex-col h-full">
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                    <h2 id="modalTitle" class="text-2xl font-bold"></h2>
+                    <div class="flex items-center space-x-3">
+                        <button id="bookmarkBtn" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                            <i class="fas fa-bookmark text-xl"></i>
+                        </button>
+                        <button id="closeModal" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Content -->
+                <div class="flex-1 overflow-auto">
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <!-- Book Cover -->
+                            <div class="lg:col-span-1">
+                                <div id="modalCover" class="w-full h-64 bg-gradient-to-br from-primary to-purple-600 rounded-lg flex items-center justify-center text-white text-6xl shadow-lg">
+                                    <i class="fas fa-book"></i>
+                                </div>
+                                <div class="mt-4 space-y-2">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600 dark:text-gray-400">Author:</span>
+                                        <span id="modalAuthor" class="font-medium"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600 dark:text-gray-400">Year:</span>
+                                        <span id="modalYear" class="font-medium"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600 dark:text-gray-400">Category:</span>
+                                        <span id="modalCategory" class="font-medium capitalize"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600 dark:text-gray-400">Rating:</span>
+                                        <div id="modalRating" class="flex items-center"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Book Content -->
+                            <div class="lg:col-span-2">
+                                <div class="mb-6">
+                                    <h3 class="text-lg font-semibold mb-3">Description</h3>
+                                    <p id="modalDescription" class="text-gray-700 dark:text-gray-300 leading-relaxed"></p>
+                                </div>
+
+                                <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-lg font-semibold">Reading Progress</h3>
+                                        <span id="progressText" class="text-sm text-gray-600 dark:text-gray-400">Page 1 of 10</span>
+                                    </div>
+                                    
+                                    <div class="bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
+                                        <div id="progressBar" class="bg-primary h-2 rounded-full transition-all duration-300" style="width: 10%"></div>
+                                    </div>
+
+                                    <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 mb-4">
+                                        <div id="bookContent" class="prose dark:prose-invert max-w-none">
+                                            <!-- Book content will be displayed here -->
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between">
+                                        <button id="prevPage" class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <i class="fas fa-chevron-left"></i>
+                                            <span>Previous</span>
+                                        </button>
+                                        <span id="pageInfo" class="text-sm text-gray-600 dark:text-gray-400">Page 1 of 10</span>
+                                        <button id="nextPage" class="flex items-center space-x-2 bg-primary hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <span>Next</span>
+                                            <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dark mode setup
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Sample book data
+        const books = [
+            {
+                id: 1,
+                title: "The Art of Programming",
+                author: "Jane Smith",
+                year: 2023,
+                category: "technology",
+                rating: 4.8,
+                description: "A comprehensive guide to modern programming practices, covering everything from fundamental concepts to advanced techniques. This book explores the creative aspects of coding and how to write elegant, maintainable software.",
+                content: [
+                    "# Chapter 1: Introduction to Programming\n\nProgramming is both an art and a science. It requires creativity, logic, and attention to detail. In this chapter, we'll explore the fundamental concepts that every programmer should understand.",
+                    "# Chapter 2: Data Structures\n\nData structures are the building blocks of efficient programs. We'll examine arrays, linked lists, trees, and graphs, learning when and how to use each one effectively.",
+                    "# Chapter 3: Algorithms\n\nAlgorithms are step-by-step procedures for solving problems. This chapter covers sorting, searching, and optimization algorithms that form the core of computer science.",
+                    "# Chapter 4: Object-Oriented Programming\n\nObject-oriented programming provides a powerful way to organize and structure code. We'll learn about classes, inheritance, polymorphism, and encapsulation.",
+                    "# Chapter 5: Design Patterns\n\nDesign patterns are proven solutions to common programming problems. This chapter explores the most important patterns and when to apply them.",
+                    "# Chapter 6: Testing and Debugging\n\nWriting bug-free code is impossible, but we can minimize errors through proper testing and debugging techniques. Learn about unit tests, integration tests, and debugging strategies.",
+                    "# Chapter 7: Performance Optimization\n\nMaking your code run faster and use less memory is crucial for large applications. This chapter covers profiling, optimization techniques, and performance best practices.",
+                    "# Chapter 8: Code Quality\n\nClean, readable code is essential for maintainable software. We'll discuss naming conventions, documentation, and refactoring techniques.",
+                    "# Chapter 9: Version Control\n\nVersion control systems like Git are essential tools for modern development. Learn how to track changes, collaborate with others, and manage your codebase.",
+                    "# Chapter 10: Conclusion\n\nProgramming is a journey of continuous learning. This final chapter discusses how to stay current with technology trends and continue growing as a developer."
+                ]
+            },
+            {
+                id: 2,
+                title: "Digital Transformation",
+                author: "Michael Johnson",
+                year: 2022,
+                category: "technology",
+                rating: 4.5,
+                description: "Explore how digital technologies are reshaping businesses and society. This book provides insights into the strategies and technologies driving digital transformation across industries.",
+                content: [
+                    "# Introduction to Digital Transformation\n\nDigital transformation is fundamentally changing how organizations operate and deliver value to customers. It's not just about technology—it's about reimagining business processes and customer experiences.",
+                    "# The Digital Landscape\n\nUnderstanding the current digital ecosystem is crucial for successful transformation. We'll explore cloud computing, artificial intelligence, and emerging technologies.",
+                    "# Strategic Planning\n\nA successful digital transformation requires careful planning and strategy. Learn how to assess your current state and develop a roadmap for change."
+                ]
+            },
+            {
+                id: 3,
+                title: "The History of Ancient Rome",
+                author: "Dr. Sarah Wilson",
+                year: 2021,
+                category: "history",
+                rating: 4.7,
+                description: "A fascinating journey through the rise and fall of the Roman Empire. From its legendary founding to its eventual decline, this book covers the major events, figures, and cultural achievements of ancient Rome.",
+                content: [
+                    "# The Founding of Rome\n\nAccording to legend, Rome was founded in 753 BCE by Romulus and Remus. While the historical accuracy of this tale is debatable, it reflects the Romans' sense of destiny and divine favor.",
+                    "# The Roman Republic\n\nThe Roman Republic lasted from 509 to 27 BCE and saw Rome's expansion throughout the Mediterranean. This period was marked by political innovation and military conquest."
+                ]
+            },
+            {
+                id: 4,
+                title: "Modern Physics Explained",
+                author: "Prof. David Chen",
+                year: 2023,
+                category: "science",
+                rating: 4.6,
+                description: "An accessible introduction to modern physics concepts including quantum mechanics, relativity, and particle physics. Written for students and curious minds seeking to understand the fundamental nature of reality.",
+                content: [
+                    "# Introduction to Modern Physics\n\nModern physics revolutionized our understanding of the universe. From the very small (quantum mechanics) to the very large (relativity), new discoveries have challenged our intuitions about reality.",
+                    "# Quantum Mechanics\n\nQuantum mechanics describes the behavior of matter and energy at the atomic and subatomic scale. It reveals a world that is fundamentally probabilistic and mysterious."
+                ]
+            },
+            {
+                id: 5,
+                title: "The Great Gatsby",
+                author: "F. Scott Fitzgerald",
+                year: 1925,
+                category: "fiction",
+                rating: 4.4,
+                description: "A classic American novel set in the Jazz Age, exploring themes of wealth, love, and the American Dream through the story of Jay Gatsby's pursuit of Daisy Buchanan.",
+                content: [
+                    "# Chapter 1\n\nIn my younger and more vulnerable years my father gave me some advice that I've pondered ever since. 'Whenever you feel like criticizing anyone,' he told me, 'just remember that all the people in this world haven't had the advantages that you've had.'",
+                    "# Chapter 2\n\nAbout halfway between West Egg and New York the motor road hastily joins the railroad and runs beside it for a quarter of a mile, so as to shrink away from a certain desolate area of land."
+                ]
+            },
+            {
+                id: 6,
+                title: "Steve Jobs: The Biography",
+                author: "Walter Isaacson",
+                year: 2011,
+                category: "biography",
+                rating: 4.9,
+                description: "The definitive biography of Apple co-founder Steve Jobs, based on extensive interviews and unprecedented access. Explore the life of one of the most influential figures in modern technology.",
+                content: [
+                    "# Early Life\n\nSteven Paul Jobs was born in San Francisco on February 24, 1955. His biological parents were Joanne Schieble and Abdulfattah Jandali, a Syrian political science professor.",
+                    "# The Founding of Apple\n\nIn 1976, Jobs and Steve Wozniak founded Apple Computer Company in the Jobs family garage. Their first product, the Apple I, was sold as a kit to computer hobbyists."
+                ]
+            }
+        ];
+
+        // Application state
+        let currentBooks = [...books];
+        let bookmarks = new Set();
+        let currentView = 'grid';
+        let showingBookmarks = false;
+        let currentBook = null;
+        let currentPage = 0;
+
+        // DOM elements
+        const searchInput = document.getElementById('searchInput');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const sortBy = document.getElementById('sortBy');
+        const bookmarksFilter = document.getElementById('bookmarksFilter');
+        const viewToggle = document.getElementById('viewToggle');
+        const booksContainer = document.getElementById('booksContainer');
+        const noResults = document.getElementById('noResults');
+        const bookModal = document.getElementById('bookModal');
+
+        // Initialize the app
+        function init() {
+            renderBooks();
+            setupEventListeners();
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            searchInput.addEventListener('input', handleSearch);
+            categoryFilter.addEventListener('change', handleFilters);
+            sortBy.addEventListener('change', handleFilters);
+            bookmarksFilter.addEventListener('click', toggleBookmarksView);
+            viewToggle.addEventListener('click', toggleView);
+            
+            // Modal events
+            document.getElementById('closeModal').addEventListener('click', closeModal);
+            document.getElementById('bookmarkBtn').addEventListener('click', toggleCurrentBookmark);
+            document.getElementById('prevPage').addEventListener('click', prevPage);
+            document.getElementById('nextPage').addEventListener('click', nextPage);
+            
+            // Close modal on outside click
+            bookModal.addEventListener('click', (e) => {
+                if (e.target === bookModal) closeModal();
+            });
+        }
+
+        // Search functionality
+        function handleSearch() {
+            const query = searchInput.value.toLowerCase();
+            currentBooks = books.filter(book => 
+                book.title.toLowerCase().includes(query) ||
+                book.author.toLowerCase().includes(query) ||
+                book.description.toLowerCase().includes(query)
+            );
+            applyFilters();
+        }
+
+        // Filter and sort functionality
+        function handleFilters() {
+            applyFilters();
+        }
+
+        function applyFilters() {
+            let filtered = [...currentBooks];
+
+            // Apply category filter
+            const category = categoryFilter.value;
+            if (category) {
+                filtered = filtered.filter(book => book.category === category);
+            }
+
+            // Apply bookmarks filter
+            if (showingBookmarks) {
+                filtered = filtered.filter(book => bookmarks.has(book.id));
+            }
+
+            // Apply sorting
+            const sort = sortBy.value;
+            filtered.sort((a, b) => {
+                switch (sort) {
+                    case 'title':
+                        return a.title.localeCompare(b.title);
+                    case 'author':
+                        return a.author.localeCompare(b.author);
+                    case 'year':
+                        return b.year - a.year;
+                    case 'rating':
+                        return b.rating - a.rating;
+                    default:
+                        return 0;
+                }
+            });
+
+            renderBooks(filtered);
+        }
+
+        // Toggle bookmarks view
+        function toggleBookmarksView() {
+            showingBookmarks = !showingBookmarks;
+            bookmarksFilter.classList.toggle('bg-primary', showingBookmarks);
+            bookmarksFilter.classList.toggle('text-white', showingBookmarks);
+            bookmarksFilter.classList.toggle('bg-gray-100', !showingBookmarks);
+            bookmarksFilter.classList.toggle('dark:bg-gray-800', !showingBookmarks);
+            applyFilters();
+        }
+
+        // Toggle view mode
+        function toggleView() {
+            currentView = currentView === 'grid' ? 'list' : 'grid';
+            const icon = viewToggle.querySelector('i');
+            icon.className = currentView === 'grid' ? 'fas fa-th-large text-xl' : 'fas fa-list text-xl';
+            renderBooks();
+        }
+
+        // Render books
+        function renderBooks(booksToRender = currentBooks) {
+            if (booksToRender.length === 0) {
+                booksContainer.innerHTML = '';
+                noResults.classList.remove('hidden');
+                return;
+            }
+
+            noResults.classList.add('hidden');
+            
+            if (currentView === 'grid') {
+                booksContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6';
+                booksContainer.innerHTML = booksToRender.map(book => createBookCard(book)).join('');
+            } else {
+                booksContainer.className = 'space-y-4';
+                booksContainer.innerHTML = booksToRender.map(book => createBookListItem(book)).join('');
+            }
+        }
+
+        // Create book card (grid view)
+        function createBookCard(book) {
+            const isBookmarked = bookmarks.has(book.id);
+            return `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden cursor-pointer" onclick="openBook(${book.id})">
+                    <div class="h-48 bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-4xl">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex items-start justify-between mb-2">
+                            <h3 class="font-semibold text-lg leading-tight">${book.title}</h3>
+                            <button class="text-gray-400 hover:text-primary transition-colors" onclick="event.stopPropagation(); toggleBookmark(${book.id})">
+                                <i class="fas fa-bookmark ${isBookmarked ? 'text-primary' : ''}"></i>
+                            </button>
+                        </div>
+                        <p class="text-gray-600 dark:text-gray-400 text-sm mb-2">${book.author}</p>
+                        <p class="text-gray-500 dark:text-gray-500 text-xs mb-3">${book.year} • ${book.category}</p>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                ${createStarRating(book.rating)}
+                                <span class="text-sm text-gray-600 dark:text-gray-400 ml-1">${book.rating}</span>
+                            </div>
+                            <span class="text-xs text-gray-500 dark:text-gray-500 capitalize">${book.category}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create book list item (list view)
+        function createBookListItem(book) {
+            const isBookmarked = bookmarks.has(book.id);
+            return `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 p-6 cursor-pointer" onclick="openBook(${book.id})">
+                    <div class="flex items-center space-x-6">
+                        <div class="w-20 h-28 bg-gradient-to-br from-primary to-purple-600 rounded flex items-center justify-center text-white text-2xl flex-shrink-0">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between mb-2">
+                                <h3 class="font-semibold text-xl">${book.title}</h3>
+                                <button class="text-gray-400 hover:text-primary transition-colors ml-4" onclick="event.stopPropagation(); toggleBookmark(${book.id})">
+                                    <i class="fas fa-bookmark ${isBookmarked ? 'text-primary' : ''}"></i>
+                                </button>
+                            </div>
+                            <p class="text-gray-600 dark:text-gray-400 mb-2">${book.author}</p>
+                            <p class="text-gray-700 dark:text-gray-300 text-sm mb-3 line-clamp-2">${book.description}</p>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-4">
+                                    <div class="flex items-center">
+                                        ${createStarRating(book.rating)}
+                                        <span class="text-sm text-gray-600 dark:text-gray-400 ml-1">${book.rating}</span>
+                                    </div>
+                                    <span class="text-sm text-gray-500 dark:text-gray-500">${book.year}</span>
+                                    <span class="text-sm text-gray-500 dark:text-gray-500 capitalize">${book.category}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create star rating
+        function createStarRating(rating) {
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 !== 0;
+            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+            return `
+                <div class="flex items-center text-yellow-400">
+                    ${'<i class="fas fa-star text-xs"></i>'.repeat(fullStars)}
+                    ${hasHalfStar ? '<i class="fas fa-star-half-alt text-xs"></i>' : ''}
+                    ${'<i class="far fa-star text-xs"></i>'.repeat(emptyStars)}
+                </div>
+            `;
+        }
+
+        // Bookmark functionality
+        function toggleBookmark(bookId) {
+            if (bookmarks.has(bookId)) {
+                bookmarks.delete(bookId);
+            } else {
+                bookmarks.add(bookId);
+            }
+            renderBooks();
+            
+            // Update modal bookmark button if modal is open
+            if (currentBook && currentBook.id === bookId) {
+                updateModalBookmark();
+            }
+        }
+
+        function toggleCurrentBookmark() {
+            if (currentBook) {
+                toggleBookmark(currentBook.id);
+            }
+        }
+
+        function updateModalBookmark() {
+            const bookmarkBtn = document.getElementById('bookmarkBtn');
+            const isBookmarked = bookmarks.has(currentBook.id);
+            bookmarkBtn.querySelector('i').className = `fas fa-bookmark text-xl ${isBookmarked ? 'text-primary' : ''}`;
+        }
+
+        // Modal functionality
+        function openBook(bookId) {
+            currentBook = books.find(book => book.id === bookId);
+            currentPage = 0;
+            
+            if (!currentBook) return;
+
+            // Update modal content
+            document.getElementById('modalTitle').textContent = currentBook.title;
+            document.getElementById('modalAuthor').textContent = currentBook.author;
+            document.getElementById('modalYear').textContent = currentBook.year;
+            document.getElementById('modalCategory').textContent = currentBook.category;
+            document.getElementById('modalDescription').textContent = currentBook.description;
+            document.getElementById('modalRating').innerHTML = createStarRating(currentBook.rating) + 
+                `<span class="text-sm text-gray-600 dark:text-gray-400 ml-1">${currentBook.rating}</span>`;
+
+            updateModalBookmark();
+            updateBookContent();
+            updateProgress();
+            
+            bookModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            bookModal.classList.add('hidden');
+            currentBook = null;
+            currentPage = 0;
+        }
+
+        function updateBookContent() {
+            if (!currentBook || !currentBook.content) return;
+            
+            const content = currentBook.content[currentPage] || 'Content not available';
+            document.getElementById('bookContent').innerHTML = marked.parse(content);
+        }
+
+        function updateProgress() {
+            if (!currentBook) return;
+            
+            const totalPages = currentBook.content.length;
+            const progress = ((currentPage + 1) / totalPages) * 100;
+            
+            document.getElementById('progressBar').style.width = `${progress}%`;
+            document.getElementById('progressText').textContent = `Page ${currentPage + 1} of ${totalPages}`;
+            document.getElementById('pageInfo').textContent = `Page ${currentPage + 1} of ${totalPages}`;
+            
+            // Update navigation buttons
+            document.getElementById('prevPage').disabled = currentPage === 0;
+            document.getElementById('nextPage').disabled = currentPage === totalPages - 1;
+        }
+
+        function prevPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                updateBookContent();
+                updateProgress();
+            }
+        }
+
+        function nextPage() {
+            if (currentBook && currentPage < currentBook.content.length - 1) {
+                currentPage++;
+                updateBookContent();
+                updateProgress();
+            }
+        }
+
+        // Initialize the application
+        init();
+    </script>
+
+
+</body></html>
